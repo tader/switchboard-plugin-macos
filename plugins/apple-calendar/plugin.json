@@ -1,0 +1,8 @@
+{
+  "id": "apple-calendar",
+  "name": "Apple Calendar",
+  "version": "1.0.0",
+  "main": "index.js",
+  "description": "Read and manage this Mac's calendar events through EventKit.",
+  "icon": "icon.svg"
+}

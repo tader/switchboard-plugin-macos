@@ -1,0 +1,16 @@
+{
+  "name": "switchboard-plugin-macos",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "test": "node --test test/*.test.js test/*.test.ts",
+    "sync": "node scripts/sync-runtime.js",
+    "check": "node scripts/sync-runtime.js --check && node scripts/check.js",
+    "build:helpers": "node scripts/build-helpers.js",
+    "integration": "node scripts/integration.js",
+    "smoke": "node scripts/smoke.js",
+    "live": "node scripts/live.js"
+  }
+}
