@@ -13,7 +13,7 @@ test('Calendar validates event fields and accepts a DST all-day window', () => {
   assert.throws(() => eventInput({ timeZone: 'Imaginary/Nowhere' }), /valid IANA/);
   assert.throws(() => eventInput({ allDay: 'true' }), /true or false/);
   assert.throws(() => eventInput({ attendees: ['a@example.test'] }), /Accepted fields/);
-  assert.throws(() => eventInput({ recurrence: {} }), /Accepted fields/);
+  assert.throws(() => eventInput({ recurrence: {} }), /frequency/);
 });
 test('Calendar listings require a positive bounded date range', () => {
   assert.throws(() => route('GET', new URL('http://local/events'), undefined, scope), /startDate/);
@@ -28,4 +28,33 @@ test('Calendar exact occurrence IDs include calendar identity and original start
   assert.deepEqual(value.input.target, target); assert.equal(value.input.operation, 'update');
   assert.throws(() => eventTarget(opaque({ eventId: 'native' })), /calendarId/);
   assert.throws(() => eventTarget(opaque({ ...target, span: 'futureEvents' })), /Accepted fields/);
+});
+
+test('Calendar recurrence authoring validates frequency, ordinals, filters and end conditions', () => {
+  assert.deepEqual(eventInput({ recurrence: { frequency: 'weekly', daysOfTheWeek: [{ dayOfTheWeek: 2 }, { dayOfTheWeek: 4 }], end: { count: 10 } } }).recurrence, { frequency: 'weekly', interval: 1, daysOfTheWeek: [{ dayOfTheWeek: 2, weekNumber: 0 }, { dayOfTheWeek: 4, weekNumber: 0 }], end: { count: 10 } });
+  assert.equal(eventInput({ recurrence: null }).recurrence, null);
+  for (const recurrence of [
+    { frequency: 'hourly' }, { frequency: 'daily', interval: 0 }, { frequency: 'daily', interval: true },
+    { frequency: 'daily', daysOfTheWeek: [{ dayOfTheWeek: 2 }] },
+    { frequency: 'weekly', daysOfTheWeek: [{ dayOfTheWeek: 2, weekNumber: 1 }] },
+    { frequency: 'monthly', daysOfTheWeek: [{ dayOfTheWeek: 2, weekNumber: 6 }] },
+    { frequency: 'monthly', daysOfTheMonth: [0] }, { frequency: 'monthly', daysOfTheMonth: [1, 1] },
+    { frequency: 'weekly', monthsOfTheYear: [3] }, { frequency: 'yearly', monthsOfTheYear: [13] },
+    { frequency: 'monthly', setPositions: [-1] }, { frequency: 'daily', end: {} },
+    { frequency: 'daily', end: { count: 0 } }, { frequency: 'daily', end: { count: 2, date: '2027-01-01T00:00:00Z' } },
+  ]) assert.throws(() => eventInput({ recurrence }), undefined, JSON.stringify(recurrence));
+  assert.throws(() => eventInput({ startDate: '2026-10-07T00:00:00Z', recurrence: { frequency: 'daily', end: { date: '2026-10-06T00:00:00Z' } } }), /precede/);
+  assert.equal(eventInput({ recurrence: { frequency: 'monthly', daysOfTheWeek: [{ dayOfTheWeek: 6, weekNumber: -1 }] } }).recurrence.daysOfTheWeek[0].weekNumber, -1);
+});
+test('Calendar recurring update/delete scopes reach the native helper with the exact occurrence', () => {
+  const id = opaque({ eventId: 'series', calendarId: 'calendar-a', startDate: '2026-10-07T12:00:00Z' });
+  const update = route('PATCH', new URL(`http://local/events/${id}`), { title: 'Future title', span: 'futureEvents' }, scope);
+  assert.equal(update.input.span, 'futureEvents');
+  const deletion = route('DELETE', new URL(`http://local/events/${id}?span=thisEvent`), undefined, scope);
+  assert.equal(deletion.input.span, 'thisEvent');
+  assert.equal(deletion.input.target.eventId, 'series');
+  assert.throws(() => route('DELETE', new URL(`http://local/events/${id}?span=allEvents`), undefined, scope), /span/);
+  assert.throws(() => eventInput({ title: 'Test', span: 'allEvents' }), /span/);
+  assert.throws(() => eventInput({ span: 'thisEvent' }), /at least one event field/);
+  assert.throws(() => eventInput({ title: 'Test', startDate: '2026-10-07T12:00:00Z', endDate: '2026-10-07T13:00:00Z', span: 'futureEvents' }, true), /Accepted fields/);
 });

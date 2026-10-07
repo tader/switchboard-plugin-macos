@@ -8,9 +8,13 @@ The plugins, tests and documentation are published at [tader/switchboard-plugin-
 
 The CI workflow is prepared locally at `.github/workflows/ci.yml`, but has not been published or run: the connected GitHub credentials cannot write workflow files. The local `gh` client cannot reach `api.github.com` from this sandbox and reports invalid authentication. Publish the prepared workflow with a working credential that permits workflow updates, then require its Linux/macOS checks before treating this as validated for release.
 
+## Calendar 1.1 changes
+
+Recurring-event authoring and explicit single/future occurrence updates/deletes were added. Native in-memory EventKit tests cover rule construction, serialization, replacement/removal and scope guards without saving any calendar data. All invitations remain read-only by request; current-user attendance status is exposed. Real recurring-series writes and invitation status reads remain unverified in this sandbox.
+
 ## Passed
 
-- 30 automated tests: Reminders migration and legacy credential reuse across reloads, Mail JXA fixtures, Calendar validation and native EventKit date behavior.
+- 32 automated tests: Reminders migration and legacy credential reuse across reloads, Mail JXA fixtures, Calendar validation and native EventKit date/recurrence behavior.
 - Injected HTTP/native transport tests: connection isolation, scoped request capabilities, replay rejection, revocation, body limits, serialized queues, helper timeout and durable retry protection across reloads.
 - Compilation of all three Swift helpers, with their embedded Info.plist privacy descriptions.
 - Separate copied-plugin imports, matching Switchboard's directory-copy installation/hot-reload model.

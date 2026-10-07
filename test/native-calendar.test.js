@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 
-test('Native EventKit date handling covers DST, null clearing and recurring-write rejection', { skip: process.platform !== 'darwin' }, async t => {
+test('Native EventKit date handling covers DST, null clearing and recurrence rules and explicit mutation scopes', { skip: process.platform !== 'darwin' }, async t => {
   const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'calendar-native-test-'));
   t.after(() => fs.rm(temporary, { recursive: true, force: true }));
   const source = await fs.readFile(new URL('../plugins/apple-calendar/helper.swift', import.meta.url), 'utf8');
@@ -31,12 +31,51 @@ do {
     do { try apply(["startDate": iso.string(from: start.addingTimeInterval(3600))], event, creating: false); fatalError("Accepted non-midnight all-day event") } catch let error as Failure { check(error.code == "invalid_all_day", "Unexpected all-day error") }
     event.isAllDay = false
     do { try apply(["endDate": "2026-03-28T00:00:00Z"], event, creating: false); fatalError("Accepted end before start") } catch let error as Failure { check(error.code == "invalid_dates", "Unexpected date-order error") }
-    event.recurrenceRules = [EKRecurrenceRule(recurrenceWith: .daily, interval: 1, end: nil)]
-    do { try requireMutable(event); fatalError("Accepted recurring write") } catch let error as Failure { check(error.code == "recurring_read_only" || error.code == "read_only", "Unexpected recurring-write error") }
-    do { try validateWritePolicy(writable: true, recurring: true, invited: false); fatalError("Accepted recurring policy") } catch let error as Failure { check(error.code == "recurring_read_only", "Recurring policy did not reject") }
-    do { try validateWritePolicy(writable: false, recurring: false, invited: false); fatalError("Accepted read-only policy") } catch let error as Failure { check(error.code == "read_only", "Read-only policy did not reject") }
-    do { try validateWritePolicy(writable: true, recurring: false, invited: true); fatalError("Accepted invitation write") } catch let error as Failure { check(error.code == "invitation_read_only", "Invitation policy did not reject") }
-    print("Native EventKit DST, nullable fields, date ordering and recurring write guard passed. No data was saved.")
+    let weekly = try recurrenceRule(["frequency": "weekly", "interval": 2, "daysOfTheWeek": [["dayOfTheWeek": 2], ["dayOfTheWeek": 4]], "end": ["count": 8]], start: start)
+    check(weekly.frequency == .weekly && weekly.interval == 2 && weekly.daysOfTheWeek!.count == 2 && weekly.recurrenceEnd!.occurrenceCount == 8, "Weekly rule lost its fields")
+    let monthly = try recurrenceRule(["frequency": "monthly", "daysOfTheWeek": [["dayOfTheWeek": 6, "weekNumber": -1]], "end": ["date": "2027-01-01T00:00:00Z"]], start: start)
+    check(monthly.daysOfTheWeek!.first!.weekNumber == -1 && monthly.recurrenceEnd!.endDate != nil, "Ordinal weekday/end date changed")
+    let yearly = try recurrenceRule(["frequency": "yearly", "monthsOfTheYear": [3, 10], "daysOfTheWeek": [["dayOfTheWeek": 2]], "setPositions": [-1]], start: start)
+    check(yearly.monthsOfTheYear!.count == 2 && yearly.setPositions!.first!.intValue == -1, "Yearly filters changed")
+    event.recurrenceRules = [weekly]
+    try apply(["title": "Preserved series"], event, creating: false)
+    check(event.recurrenceRules!.first!.interval == 2, "Omitted recurrence was changed")
+    try apply(["recurrence": NSNull()], event, creating: false)
+    check(!event.hasRecurrenceRules, "Recurrence was not removed")
+    try apply(["recurrence": ["frequency": "monthly", "daysOfTheMonth": [1, -1]]], event, creating: false)
+    check(event.recurrenceRules!.first!.daysOfTheMonth!.count == 2, "Recurrence was not replaced")
+    let output = recurrenceJSON(yearly)
+    check((output["frequency"] as? String) == "yearly" && output["setPositions"] != nil, "Recurrence serialization lost fields")
+    for invalid: [String: Any] in [
+        ["frequency": "daily", "daysOfTheWeek": [["dayOfTheWeek": 2]]],
+        ["frequency": "weekly", "daysOfTheWeek": [["dayOfTheWeek": 2, "weekNumber": 1]]],
+        ["frequency": "monthly", "daysOfTheWeek": [["dayOfTheWeek": 2, "weekNumber": 6]]],
+        ["frequency": "yearly", "monthsOfTheYear": [0]],
+        ["frequency": "daily", "interval": true],
+        ["frequency": "daily", "interval": 1.5],
+        ["frequency": "monthly", "daysOfTheMonth": [1, 1]],
+        ["frequency": "daily", "end": ["count": 0]],
+        ["frequency": "daily", "end": ["count": 2, "date": "2027-01-01T00:00:00Z"]],
+        ["frequency": "daily", "end": ["date": "2020-01-01T00:00:00Z"]]
+    ] {
+        do { _ = try recurrenceRule(invalid, start: start); fatalError("Accepted invalid recurrence") } catch let error as Failure { check(error.status == 400, "Unexpected recurrence validation error") }
+    }
+    let singleSpan = try mutationSpan(["span": "thisEvent"], recurring: true, detached: true)
+    check(singleSpan == .thisEvent, "Detached single-occurrence scope failed")
+    let futureSpan = try mutationSpan(["span": "futureEvents", "recurrence": NSNull()], recurring: true, detached: false)
+    check(futureSpan == .futureEvents, "Future scope failed")
+    for (input, recurring, detached, code): ([String: Any], Bool, Bool, String) in [
+        ([:], true, false, "recurrence_scope_required"),
+        (["span": "futureEvents"], true, true, "invalid_series_scope"),
+        (["span": "futureEvents"], false, false, "invalid_series_scope"),
+        (["span": "thisEvent", "recurrence": NSNull()], true, false, "recurrence_scope_conflict"),
+        (["span": "allEvents"], true, false, "invalid_span")
+    ] {
+        do { _ = try mutationSpan(input, recurring: recurring, detached: detached); fatalError("Accepted unsafe mutation scope") } catch let error as Failure { check(error.code == code, "Unexpected scope error") }
+    }
+    do { try validateWritePolicy(writable: false, invited: false); fatalError("Accepted read-only policy") } catch let error as Failure { check(error.code == "read_only", "Read-only policy did not reject") }
+    do { try validateWritePolicy(writable: true, invited: true); fatalError("Accepted invitation write") } catch let error as Failure { check(error.code == "invitation_read_only", "Invitation policy did not reject") }
+    print("Native EventKit DST, nullable fields, date ordering, recurrence and mutation scopes passed. No data was saved.")
 } catch { fatalError(String(describing: error)) }
 `;
   const file = path.join(temporary, 'test.swift'); await fs.writeFile(file, prefix + suite);

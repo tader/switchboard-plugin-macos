@@ -1,8 +1,10 @@
 import { createAdapter, object, string, boolean, date, invalid, query, page, identifier } from './lib/runtime.js';
 
-const fields = ['title', 'calendarId', 'startDate', 'endDate', 'allDay', 'timeZone', 'notes', 'location', 'url'];
+import { recurrenceInput, eventSpan, recurrenceSchema, spanSchema } from './recurrence.js';
+
+const fields = ['title', 'calendarId', 'startDate', 'endDate', 'allDay', 'timeZone', 'notes', 'location', 'url', 'recurrence'];
 export function eventInput(value, creating = false) {
-  object(value, creating ? [...fields, 'idempotencyKey'] : fields);
+  object(value, creating ? [...fields, 'idempotencyKey'] : [...fields, 'span']);
   const input = {};
   for (const key of ['title', 'calendarId']) if (value[key] !== undefined) input[key] = string(value[key], key, key === 'title' ? 1000 : 4096);
   for (const key of ['notes', 'location', 'url']) if (Object.hasOwn(value, key)) input[key] = value[key] === null ? null : string(value[key], key, key === 'notes' ? 20000 : 4096, true);
@@ -13,9 +15,12 @@ export function eventInput(value, creating = false) {
     input.timeZone = string(value.timeZone, 'timeZone', 128);
     try { new Intl.DateTimeFormat('en', { timeZone: input.timeZone }); } catch { throw invalid('timeZone must be a valid IANA time zone.'); }
   }
+  if (Object.hasOwn(value, 'recurrence')) input.recurrence = recurrenceInput(value.recurrence);
+  if (!creating && value.span !== undefined) input.span = eventSpan(value.span);
+  if (input.recurrence?.end?.date && input.startDate && Date.parse(input.recurrence.end.date) < Date.parse(input.startDate)) throw invalid('recurrence.end.date must not precede startDate.');
   if (creating && (!input.title || !input.startDate || !input.endDate)) throw invalid('title, startDate and endDate are required.');
   if (input.startDate && input.endDate && Date.parse(input.endDate) <= Date.parse(input.startDate)) throw invalid('endDate must be after startDate.');
-  if (!creating && !Object.keys(input).length) throw invalid('Provide at least one event field to update.');
+  if (!creating && !Object.keys(input).some(key => key !== 'span')) throw invalid('Provide at least one event field to update.');
   return input;
 }
 export function eventTarget(value) {
@@ -39,7 +44,7 @@ export function route(method, url, body, scope) {
     if (search !== null) string(search, 'query', 500);
     return { input: { operation: 'events', startDate, endDate, ...(calendarId ? { calendarId } : {}), ...(search ? { query: search } : {}), offset: paging.offset, limit: paging.limit }, page: paging };
   }
-  query(url, []);
+  query(url, method === 'DELETE' ? ['span'] : []);
   if (url.pathname === '/events' && method === 'POST') {
     const input = eventInput(body, true);
     return { input: { ...input, operation: 'create' }, idempotencyKey: string(body.idempotencyKey, 'idempotencyKey', 128) };
@@ -47,7 +52,7 @@ export function route(method, url, body, scope) {
   const match = url.pathname.match(/^\/events\/([^/]+)$/);
   if (match && ['GET', 'PATCH', 'DELETE'].includes(method)) {
     const target = eventTarget(decodeURIComponent(match[1]));
-    return { input: { ...(method === 'PATCH' ? eventInput(body) : {}), operation: { GET: 'get', PATCH: 'update', DELETE: 'delete' }[method], target } };
+    return { input: { ...(method === 'PATCH' ? eventInput(body) : {}), ...(method === 'DELETE' && url.searchParams.has('span') ? { span: eventSpan(url.searchParams.get('span')) } : {}), operation: { GET: 'get', PATCH: 'update', DELETE: 'delete' }[method], target } };
   }
 }
 const pagination = [
@@ -55,21 +60,21 @@ const pagination = [
   { name: 'nextToken', in: 'query', schema: { type: 'string' } },
 ];
 const eventSchema = { type: 'object', additionalProperties: false, properties: {
-  title: { type: 'string' }, calendarId: { type: 'string' }, startDate: { type: 'string', format: 'date-time' }, endDate: { type: 'string', format: 'date-time', description: 'Exclusive end; must follow startDate.' },
+  recurrence: recurrenceSchema, title: { type: 'string' }, calendarId: { type: 'string' }, startDate: { type: 'string', format: 'date-time' }, endDate: { type: 'string', format: 'date-time', description: 'Exclusive end; must follow startDate.' },
   allDay: { type: 'boolean', default: false }, timeZone: { type: 'string', description: 'IANA time zone; defaults to this Mac’s zone. All-day events are floating and require this Mac’s zone.' }, notes: { type: 'string', nullable: true }, location: { type: 'string', nullable: true }, url: { type: 'string', nullable: true, format: 'uri' },
 } };
-const responses = { 200: { description: 'Native result' }, 400: { description: 'Invalid input' }, 403: { description: 'Calendar permission denied or calendar read-only' }, 404: { description: 'Event or calendar not found' }, 409: { description: 'Unsupported recurring event or uncertain mutation' } };
+const responses = { 200: { description: 'Native result' }, 400: { description: 'Invalid input' }, 403: { description: 'Calendar permission denied or calendar read-only' }, 404: { description: 'Event or calendar not found' }, 409: { description: 'Missing/unsupported recurrence scope, invitation edit or uncertain mutation' } };
 const json = schema => ({ required: true, content: { 'application/json': { schema } } });
-export const openapi = { openapi: '3.0.3', info: { title: 'Apple Calendar', version: '1.0.0' }, paths: {
+export const openapi = { openapi: '3.0.3', info: { title: 'Apple Calendar', version: '1.1.0' }, paths: {
   '/calendars': { get: { operationId: 'listAppleCalendars', summary: 'List this Mac’s calendars and write permissions', parameters: pagination, responses } },
   '/events': {
     get: { operationId: 'listAppleCalendarEvents', summary: 'List event occurrences in a bounded date range', parameters: [...pagination, ...['startDate', 'endDate'].map(name => ({ name, in: 'query', required: true, schema: { type: 'string', format: 'date-time' } })), ...['calendarId', 'query'].map(name => ({ name, in: 'query', schema: { type: 'string' } }))], responses },
-    post: { operationId: 'createAppleCalendarEvent', summary: 'Create a non-recurring event', requestBody: json({ ...eventSchema, required: ['title', 'startDate', 'endDate', 'idempotencyKey'], properties: { ...eventSchema.properties, idempotencyKey: { type: 'string', minLength: 8, maxLength: 128 } } }), responses: { ...responses, 201: { description: 'Created event' } } },
+    post: { operationId: 'createAppleCalendarEvent', summary: 'Create an event or recurring series', requestBody: json({ ...eventSchema, required: ['title', 'startDate', 'endDate', 'idempotencyKey'], properties: { ...eventSchema.properties, idempotencyKey: { type: 'string', minLength: 8, maxLength: 128 } } }), responses: { ...responses, 201: { description: 'Created event' } } },
   },
   '/events/{id}': { parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' }, description: 'Opaque occurrence ID returned by this plugin.' }],
     get: { operationId: 'getAppleCalendarEvent', summary: 'Read one exact event occurrence', responses },
-    patch: { operationId: 'updateAppleCalendarEvent', summary: 'Update a non-recurring event', requestBody: json(eventSchema), responses },
-    delete: { operationId: 'deleteAppleCalendarEvent', summary: 'Delete a non-recurring event', responses },
+    patch: { operationId: 'updateAppleCalendarEvent', summary: 'Update an event occurrence or future series', requestBody: json({ ...eventSchema, properties: { ...eventSchema.properties, span: spanSchema } }), responses },
+    delete: { operationId: 'deleteAppleCalendarEvent', summary: 'Delete an event occurrence or future series', parameters: [{ name: 'span', in: 'query', schema: spanSchema }], responses },
   },
 } };
 export const definition = { authId: 'eventkit', authName: 'This Mac', frameworks: ['Foundation', 'EventKit'], openapi, route,

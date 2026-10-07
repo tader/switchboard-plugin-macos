@@ -24,7 +24,7 @@ All plugins need macOS, Node 24+, the logged-in user's graphical session and Xco
 |---|---|---|
 | [Apple Reminders](plugins/apple-reminders/docs/setup.md) | This Mac; full Reminders access | Lists, filtered/paginated reminders, create, update, complete and delete |
 | [Apple Mail](plugins/apple-mail/docs/setup.md) | One email address configured in Mail; Automation permission | Nested mailboxes, filtered/paginated message reads, drafts, sends/replies, read/flag state and same-account moves |
-| [Apple Calendar](plugins/apple-calendar/docs/setup.md) | This Mac; full Calendar access | Calendars and bounded event reads; create, update and delete individual events |
+| [Apple Calendar](plugins/apple-calendar/docs/setup.md) | This Mac; full Calendar access | Calendars and bounded occurrence reads; create recurring series, update/delete one occurrence or future occurrences; read invitation status |
 
 Mail and Calendar compile their Swift helpers on the first connection, then cache them in Switchboard's persistent plugin-data directory. Setup does not request their privacy permissions. Reminders retains its existing setup-time helper build and permission behavior.
 
@@ -45,7 +45,7 @@ npm run smoke
 npm run build:helpers
 ```
 
-`npm test` uses isolated Mail fixtures and injected native/HTTP transports. On macOS it also exercises native EventKit date behavior without requesting access or saving data. `npm run smoke` imports separately copied plugins and checks a real loopback adapter using fake calendar data; it never contacts Mail or creates events. `npm run build:helpers` compiles all three native helpers on macOS. CI runs tests on Linux and macOS and compiles helpers on macOS.
+`npm test` uses isolated Mail fixtures and injected native/HTTP transports. On macOS it also exercises native EventKit date behavior without requesting access or saving data. `npm run smoke` imports separately copied plugins and checks a real loopback adapter using fake calendar data; it never contacts Mail or creates events. `npm run build:helpers` compiles all three native helpers on macOS. The prepared CI workflow targets Linux and macOS and compiles helpers on macOS; publishing it remains pending (see the validation record).
 
 Optional live validation, from a normal Terminal:
 
