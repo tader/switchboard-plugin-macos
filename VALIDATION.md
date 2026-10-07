@@ -2,6 +2,12 @@
 
 Implementation validation on October 7, 2026, using Node 26.8.1, macOS 27.0.1 and the Xcode 27.1 toolchain. CI targets Node 24 on Linux and macOS.
 
+## Publication
+
+The plugins, tests and documentation are published at [tader/switchboard-plugin-macos](https://github.com/tader/switchboard-plugin-macos). The companion [Switchboard migration PR](https://github.com/tader/switchboard/pull/1) remains a draft; install the replacement Reminders plugin on every Mac/satellite before upgrading to that removal.
+
+The CI workflow is prepared locally at `.github/workflows/ci.yml`, but has not been published or run: the connected GitHub credentials cannot write workflow files. The local `gh` client cannot reach `api.github.com` from this sandbox and reports invalid authentication. Publish the prepared workflow with a working credential that permits workflow updates, then require its Linux/macOS checks before treating this as validated for release.
+
 ## Passed
 
 - 30 automated tests: Reminders migration and legacy credential reuse across reloads, Mail JXA fixtures, Calendar validation and native EventKit date behavior.
