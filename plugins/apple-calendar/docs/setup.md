@@ -5,7 +5,7 @@ services: [apple-calendar]
 
 # Apple Calendar
 
-Connect with **This Mac** to use calendars belonging to the logged-in macOS user running Switchboard. Install on a Mac satellite when the main server runs elsewhere. Requirements: macOS 14+, Node 24+ and Xcode Command Line Tools. The first connection requests **full** calendar access; write-only access cannot support event reads or deletion. If denied, grant full access to **Switchboard Apple Calendar** in **System Settings → Privacy & Security → Calendars**. Use a per-user session, not a system daemon.
+Connect with **This Mac** to use calendars belonging to the logged-in macOS user running Switchboard. Install on a Mac peer when the main server runs elsewhere. Requirements: macOS 14+, Node 24+ and Xcode Command Line Tools. The first connection requests **full** calendar access; write-only access cannot support event reads or deletion. If denied, grant full access to **Switchboard Apple Calendar** in **System Settings → Privacy & Security → Calendars**. Use a per-user session, not a system daemon.
 
 ## Read
 

@@ -52,8 +52,8 @@ export interface PluginContext {
   dir: string;
   /** Persistent directory for this plugin's own files. */
   dataDir: string;
-  /** True when this instance has an outbound satellite connection configured. */
-  satellite: boolean;
+  /** True when this instance has a peer connection configured. */
+  peer: boolean;
 }
 
 export interface PluginInstance {

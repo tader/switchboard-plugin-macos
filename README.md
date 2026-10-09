@@ -1,6 +1,6 @@
 # macOS plugins for Switchboard
 
-Local Apple Reminders, Apple Mail and Apple Calendar integrations for [Switchboard](https://github.com/tader/switchboard). Run them on a Mac, directly or through a Switchboard satellite. There are no npm runtime dependencies.
+Local Apple Reminders, Apple Mail and Apple Calendar integrations for [Switchboard](https://github.com/tader/switchboard). Run them on a Mac, directly or through a Switchboard peer. There are no npm runtime dependencies.
 
 > **AI authorship disclosure:** OpenAI Codex wrote the new implementation, tests and documentation at Thomas de Ruiter's request. Reminders was moved from Switchboard. The code has not been independently reviewed by a human. Validation and remaining gaps are recorded below and in [VALIDATION.md](VALIDATION.md).
 
@@ -18,7 +18,7 @@ Switchboard installs all three plugins from `plugins/`. To install one plugin, u
 https://github.com/tader/switchboard-plugin-macos/tree/main/plugins/apple-mail
 ```
 
-All plugins need macOS, Node 24+, the logged-in user's graphical session and Xcode Command Line Tools (`xcode-select --install`). Mail and Calendar target macOS 14+. Reminders retains its existing compatibility fallback. A per-user LaunchAgent works; a system daemon or Linux/Docker host cannot use this Mac's local data. Install on the Mac's satellite when the main Switchboard runs elsewhere.
+All plugins need macOS, Node 24+, the logged-in user's graphical session and Xcode Command Line Tools (`xcode-select --install`). Mail and Calendar target macOS 14+. Reminders retains its existing compatibility fallback. A per-user LaunchAgent works; a system daemon or Linux/Docker host cannot use this Mac's local data. Install on the Mac's peer when the main Switchboard runs elsewhere.
 
 | Plugin | Connection | Capabilities |
 |---|---|---|
