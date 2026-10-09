@@ -12,7 +12,8 @@
           "path": "plugin.json",
           "jsonpath": "$.version"
         }
-      ]
+      ],
+      "initial-version": "1.1.0"
     },
     "plugins/apple-reminders": {
       "release-type": "node",
@@ -24,7 +25,8 @@
           "path": "plugin.json",
           "jsonpath": "$.version"
         }
-      ]
+      ],
+      "initial-version": "1.1.0"
     },
     "plugins/apple-mail": {
       "release-type": "node",
@@ -36,7 +38,8 @@
           "path": "plugin.json",
           "jsonpath": "$.version"
         }
-      ]
+      ],
+      "initial-version": "1.0.0"
     }
   }
 }
