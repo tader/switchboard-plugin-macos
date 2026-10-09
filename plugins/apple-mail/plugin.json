@@ -1,7 +1,7 @@
 {
   "id": "apple-mail",
   "name": "Apple Mail",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "main": "index.js",
   "description": "Read, draft, send and organize messages in a selected local Apple Mail account.",
   "icon": "icon.svg"
