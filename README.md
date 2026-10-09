@@ -64,3 +64,7 @@ With a Switchboard checkout and its dependencies installed, `SWITCHBOARD_ROOT=..
 ## Further macOS integrations
 
 See [ROADMAP.md](ROADMAP.md). Contacts is the next recommended addition, followed by Notes, Shortcuts and Spotlight file search. Photos, document OCR/PDF extraction and Maps are also useful candidates.
+
+## Releases
+
+Release-please opens version and changelog pull requests from Conventional Commits. Merge the release PR to publish its tag and GitHub release. Plugin manifests are updated with their package versions. Family repositories maintain an independent version for each plugin.
