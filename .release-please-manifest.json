@@ -1,5 +1,5 @@
 {
-  "plugins/apple-calendar": "1.1.0",
-  "plugins/apple-reminders": "1.1.0",
-  "plugins/apple-mail": "1.0.0"
+  "plugins/apple-calendar": "1.2.0",
+  "plugins/apple-reminders": "1.2.0",
+  "plugins/apple-mail": "1.1.0"
 }
