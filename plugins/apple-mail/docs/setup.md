@@ -55,8 +55,6 @@ Use email addresses without display names. Sending always uses the connected add
 
 Attachments, HTML composition, deleting messages, full-body search and background subscriptions are deferred. The helper never replaces your existing outgoing drafts. A failed compose operation may leave a new draft for inspection.
 
-## Storage and verification
+## Storage and backups
 
 Helpers and durable ledgers live in `<Switchboard data>/plugin-data/apple-mail/`; ledgers use mode 0600 and contain operation receipts. Back them up with Switchboard's data. Connection deletion revokes outstanding request capabilities but retains the ledger so reconnecting cannot silently discard retry protection. Switchboard's normal audit trail may contain requests and responses, including mail content.
-
-Fixture tests cover the exposed operations. Native draft persistence, real sending and end-to-end Mail reads require verification from a normal Terminal; the implementation sandbox denied JXA application access. `APPLE_MAIL_EMAIL=you@example.com npm run live` performs reads only for Mail.
